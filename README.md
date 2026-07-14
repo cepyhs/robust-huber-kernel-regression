@@ -24,6 +24,7 @@ It's worth being precise about what "robustness" means in this context, since it
 ## Empirical Demo (Illustrative, Not a Theoretical Reproduction)
 
 The included script fits this model to historical Bitcoin (BTC-USD) daily closing prices (January 2025–present, via the Yahoo Finance API), with two synthetic outliers manually injected at the 25% and 75% marks of the series to visualize how the fit responds to extreme, isolated anomalies.
+![Robust Huber-Tikhonov fit vs OLS baseline on BTC price data](robust_vs_OLS_regression.png)
 
 **What the plot shows:**
 - The fitted trend line is markedly less pulled toward the injected anomalies than an ordinary least-squares fit would be, consistent with Huber loss down-weighting large residuals.
