@@ -17,18 +17,18 @@ This engine implements a hybrid mathematical framework based on modern statistic
 
 ---
 
-## Empirical Verification (Simulated Performance)
+## Empirical Verification (Real-World Bitcoin Performance)
 
-To test the resilience of the algorithm, the engine was evaluated against a chaotic target distribution injected with extreme artificial spikes (simulating severe hardware/sensor malfunctions).
+To test the resilience of the algorithm against actual financial volatility, the engine was evaluated using historical Bitcoin closing prices (BTC-USD) scaled across a timeline from January 2025 up to the current period in 2026. To simulate catastrophic market anomalies (such as dynamic flash crashes or logging pipeline glitches), intentional heavy-tailed outliers were injected into the dataset.
 
-Below is the visualized result of the model running on the corrupted dataset:
+Below is the visualized result of the model running on this highly volatile data:
 
-![Simulated Performance Chart](huberloss.png)
+![Real-World Performance Chart](huberloss_real_data.png)
 
 ### Key Observations from the Plot:
-* **Outlier Immunity**: The blue prediction line completely ignores the severe anomalies located near $y = 17$ and $y = -6$, showing high resistance to heavy-tailed distributions.
-* **Smooth Non-Linear Generalization**: Thanks to the RBF Kernel integration, the prediction line exhibits a highly organic, continuous curvature that maps the true data density rather than rigidly forcing a straight line.
-* **High Operational Stability**: Tikhonov boundaries successfully kept the functional parameter space constrained, eliminating any unwanted target oscillations.
+* **Outlier & Noise Immunity**: The blue prediction line seamlessly cuts through dense daily market fluctuations and completely ignores the severe artificial anomalies injected at the 25% and 75% marks, demonstrating superb heavy-tailed distribution resistance.
+* **Global Non-Linear Trend Extraction**: Driven by the RBF Mercer Kernel integration, the model bypasses small high-frequency market noise to naturally capture the macro, long-term global curvature and cyclical trends of the asset.
+* **High Structural Stability**: The Tikhonov capacity boundary functions perfectly, preventing the model from picking up rapid daily oscillations and ensuring a stable, generalized predictive line ideal for algorithmic macro strategies.
 
 ---
 
