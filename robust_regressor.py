@@ -2,14 +2,15 @@ import numpy as np
 from scipy.optimize import minimize
 from sklearn.metrics.pairwise import rbf_kernel
 import matplotlib.pyplot as plt
+import yfinance as yf
 
 # 1. DEFINE THE MODEL CLASS (FROM THE RESEARCH PAPER)
 class TikhonovHuberKernelRegression:
     def __init__(self, lambda_param=0.01, sigma=1.35, gamma=0.1):
-        self.lambda_param = lambda_param  # \lambda (Tikhonov capacity penalty)
-        self.sigma = sigma                # \sigma (Huber loss threshold parameter)
-        self.gamma = gamma                # Width parameter for RBF Mercer Kernel
-        self.alpha = None                 # Optimization weight coefficients to be learned
+        self.lambda_param = lambda_param  
+        self.sigma = sigma                
+        self.gamma = gamma                
+        self.alpha = None                 
         self.X_train = None
         
     def _huber_loss(self, w):
@@ -20,11 +21,8 @@ class TikhonovHuberKernelRegression:
     def fit(self, X, y):
         self.X_train = X
         n_samples = X.shape[0]
-        
-        # Compute the Kernel Matrix (K) using RBF Kernel
         K = rbf_kernel(X, X, gamma=self.gamma)
         
-        # Define the objective function to minimize (Equation 2.2 from the paper)
         def objective_function(alpha):
             predictions = K.dot(alpha)
             residuals = y - predictions
@@ -32,45 +30,56 @@ class TikhonovHuberKernelRegression:
             reg_term = self.lambda_param * alpha.dot(K).dot(alpha)
             return loss_term + reg_term
 
-        # Run optimization solver to find the best alpha coefficients
         initial_alpha = np.zeros(n_samples)
         result = minimize(objective_function, initial_alpha, method='BFGS')
-        
         self.alpha = result.x
         return self
 
     def predict(self, X_new):
-        # Compute kernel between new data and training data
         K_new = rbf_kernel(X_new, self.X_train, gamma=self.gamma)
         return K_new.dot(self.alpha)
 
-# 2. GENERATE SYNTHETIC TRAINING DATA WITH SEVERE OUTLIERS
-np.random.seed(42)
-X = np.random.rand(40, 1) * 5  # 40 random data points between 0 and 5
-# True underlying function: y = 2x + 1 + Gaussian noise
-y = 2 * X.squeeze() + 1 + np.random.normal(0, 0.3, 40)
+# 2. DOWNLOAD REAL-WORLD VOLATILE FINANCIAL DATA (JAN 2025 - PRESENT)
+print("Fetching real-world data from Yahoo Finance...")
+# Removing 'end' parameter automatically fetches data up to the current date in 2026
+data = yf.download("BTC-USD", start="2025-01-01")
 
-# Inject intentional extreme anomalies (heavy-tailed outliers)
-y[5] += 15.0  
-y[25] -= 15.0
+# Extract close prices
+y = data['Close'].values.flatten()
+X = np.arange(len(y)).reshape(-1, 1)
+
+# Normalization (Scale to 0-5 window to optimize kernel performance)
+X_scaled = (X - X.min()) / (X.max() - X.min()) * 5
+y_scaled = (y - y.min()) / (y.max() - y.min()) * 10
+
+# Inject artificial flash crash/anomalies into the expanded timeline
+# We place them at around 25% and 75% marks of the dataset dynamically
+idx_1 = int(len(y) * 0.25)
+idx_2 = int(len(y) * 0.75)
+y_scaled[idx_1] -= 5.0  
+y_scaled[idx_2] += 5.0
 
 # 3. TRAIN THE ROBUST REGRESSION MODEL
-model = TikhonovHuberKernelRegression(lambda_param=0.001, sigma=1.0, gamma=0.1)
-model.fit(X, y)
+print(f"Training the robust Huber-Tikhonov model on {len(y)} data points...")
+# Adjusted hyperparameters slightly to balance the larger dataset size
+model = TikhonovHuberKernelRegression(lambda_param=0.008, sigma=0.5, gamma=0.3)
+model.fit(X_scaled, y_scaled)
 
 # 4. GENERATE PREDICTIONS FOR PLOTTING
-X_grid = np.linspace(0, 5, 100).reshape(-1, 1)
+X_grid = np.linspace(0, 5, 300).reshape(-1, 1)
 y_pred = model.predict(X_grid)
 
-# 5. VISUALIZE THE ROBUST PERFORMANCE WITH AN ENGLISH CHART
-plt.figure(figsize=(10, 6))
-plt.scatter(X, y, color='red', label='Corrupted Training Data (With Outliers)')
-plt.plot(X_grid, y_pred, color='blue', linewidth=2, label='Robust Model Prediction (Huber-Tikhonov)')
-plt.title('Robust Regression Performance Under Severe Outlier Injections')
-plt.xlabel('X (Input Variable)')
-plt.ylabel('y (Output Response)')
+# 5. VISUALIZE PERFORMANCE UP TO THE CURRENT PERIOD
+plt.figure(figsize=(12, 6))
+plt.scatter(X_scaled, y_scaled, color='red', s=15, alpha=0.6, label='Actual Bitcoin Price (With Anomaly Injections)')
+plt.plot(X_grid, y_pred, color='blue', linewidth=2.5, label='Robust Model Trend Line')
+plt.title('Robust Kernel Regression on Bitcoin Volatility (Jan 2025 - Present)')
+plt.xlabel('Normalized Timeline (January 2025 onwards)')
+plt.ylabel('Normalized Target Price')
 plt.legend()
 plt.grid(True)
 
-# Force the plot window to display and hold in local environments
+# Save the comprehensive chart for your portfolio
+plt.savefig('huberloss_real_data.png', dpi=300)
+print("Success! Updated chart saved as huberloss_real_data.png")
 plt.show()
