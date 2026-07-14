@@ -1,20 +1,31 @@
 import numpy as np
 from scipy.optimize import minimize
 from sklearn.metrics.pairwise import rbf_kernel
+from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 import yfinance as yf
 
-# 1. DEFINE THE MODEL CLASS (FROM THE RESEARCH PAPER)
+
 class TikhonovHuberKernelRegression:
+    """
+    Tikhonov-regularized Huber regression in RKHS.
+
+    Note: sigma and lambda_param are set manually here. Tong (2026,
+    Applied and Computational Harmonic Analysis) shows theoretical
+    generalization guarantees hold when these are jointly tuned according
+    to explicit sample-size-dependent formulas (see Theorem 1 of that
+    paper). The fixed values below are a practical heuristic, not a
+    theoretically guaranteed configuration.
+    """
+
     def __init__(self, lambda_param=0.01, sigma=1.35, gamma=0.1):
-        self.lambda_param = lambda_param  
-        self.sigma = sigma                
-        self.gamma = gamma                
-        self.alpha = None                 
+        self.lambda_param = lambda_param
+        self.sigma = sigma
+        self.gamma = gamma
+        self.alpha = None
         self.X_train = None
-        
+
     def _huber_loss(self, w):
-        """Calculates Huber Loss based on the error value"""
         abs_w = np.abs(w)
         return np.where(abs_w <= self.sigma, 0.5 * (w**2), self.sigma * (abs_w - 0.5 * self.sigma))
 
@@ -22,7 +33,7 @@ class TikhonovHuberKernelRegression:
         self.X_train = X
         n_samples = X.shape[0]
         K = rbf_kernel(X, X, gamma=self.gamma)
-        
+
         def objective_function(alpha):
             predictions = K.dot(alpha)
             residuals = y - predictions
@@ -39,47 +50,60 @@ class TikhonovHuberKernelRegression:
         K_new = rbf_kernel(X_new, self.X_train, gamma=self.gamma)
         return K_new.dot(self.alpha)
 
-# 2. DOWNLOAD REAL-WORLD VOLATILE FINANCIAL DATA (JAN 2025 - PRESENT)
-print("Fetching real-world data from Yahoo Finance...")
-# Removing 'end' parameter automatically fetches data up to the current date in 2026
-data = yf.download("BTC-USD", start="2025-01-01")
 
-# Extract close prices
+# 1. DOWNLOAD REAL-WORLD BITCOIN DATA
+print("Fetching BTC-USD data from Yahoo Finance...")
+data = yf.download("BTC-USD", start="2025-01-01")
 y = data['Close'].values.flatten()
 X = np.arange(len(y)).reshape(-1, 1)
 
-# Normalization (Scale to 0-5 window to optimize kernel performance)
+# Normalize
 X_scaled = (X - X.min()) / (X.max() - X.min()) * 5
 y_scaled = (y - y.min()) / (y.max() - y.min()) * 10
 
-# Inject artificial flash crash/anomalies into the expanded timeline
-# We place them at around 25% and 75% marks of the dataset dynamically
+# Inject synthetic anomalies at 25% / 75% marks (clearly labeled as synthetic —
+# these are large, controlled injections used to visualize outlier response,
+# not real flash-crash events)
 idx_1 = int(len(y) * 0.25)
 idx_2 = int(len(y) * 0.75)
-y_scaled[idx_1] -= 5.0  
-y_scaled[idx_2] += 5.0
+y_scaled_anomalous = y_scaled.copy()
+y_scaled_anomalous[idx_1] -= 5.0
+y_scaled_anomalous[idx_2] += 5.0
 
-# 3. TRAIN THE ROBUST REGRESSION MODEL
-print(f"Training the robust Huber-Tikhonov model on {len(y)} data points...")
-# Adjusted hyperparameters slightly to balance the larger dataset size
-model = TikhonovHuberKernelRegression(lambda_param=0.008, sigma=0.5, gamma=0.3)
-model.fit(X_scaled, y_scaled)
+# 2. FIT ROBUST HUBER-KERNEL MODEL
+print(f"Fitting Huber-Tikhonov model on {len(y)} points...")
+huber_model = TikhonovHuberKernelRegression(lambda_param=0.008, sigma=0.5, gamma=0.3)
+huber_model.fit(X_scaled, y_scaled_anomalous)
 
-# 4. GENERATE PREDICTIONS FOR PLOTTING
+# 3. FIT AN ORDINARY LEAST SQUARES BASELINE FOR COMPARISON
+# (included so the robustness claim is visually and numerically checkable,
+# rather than asserted without a baseline)
+print("Fitting OLS baseline for comparison...")
+ols_model = LinearRegression()
+ols_model.fit(X_scaled, y_scaled_anomalous)
+
+# 4. GENERATE PREDICTIONS
 X_grid = np.linspace(0, 5, 300).reshape(-1, 1)
-y_pred = model.predict(X_grid)
+y_pred_huber = huber_model.predict(X_grid)
+y_pred_ols = ols_model.predict(X_grid)
 
-# 5. VISUALIZE PERFORMANCE UP TO THE CURRENT PERIOD
+# Quantify how much each fit was pulled toward the injected anomalies
+huber_pred_at_anomalies = huber_model.predict(X_scaled[[idx_1, idx_2]])
+ols_pred_at_anomalies = ols_model.predict(X_scaled[[idx_1, idx_2]])
+print(f"Huber fit value near anomaly points: {huber_pred_at_anomalies}")
+print(f"OLS fit value near anomaly points:   {ols_pred_at_anomalies}")
+
+# 5. VISUALIZE
 plt.figure(figsize=(12, 6))
-plt.scatter(X_scaled, y_scaled, color='red', s=15, alpha=0.6, label='Actual Bitcoin Price (With Anomaly Injections)')
-plt.plot(X_grid, y_pred, color='blue', linewidth=2.5, label='Robust Model Trend Line')
-plt.title('Robust Kernel Regression on Bitcoin Volatility (Jan 2025 - Present)')
-plt.xlabel('Normalized Timeline (January 2025 onwards)')
-plt.ylabel('Normalized Target Price')
+plt.scatter(X_scaled, y_scaled_anomalous, color='red', s=15, alpha=0.5,
+            label='BTC price (with 2 synthetic injected anomalies)')
+plt.plot(X_grid, y_pred_huber, color='blue', linewidth=2.5, label='Huber-Tikhonov-RKHS fit')
+plt.plot(X_grid, y_pred_ols, color='green', linewidth=2, linestyle='--', label='OLS baseline fit')
+plt.title('Robust vs. OLS Regression on BTC Price Data with Injected Anomalies')
+plt.xlabel('Normalized timeline (Jan 2025 onward)')
+plt.ylabel('Normalized price')
 plt.legend()
 plt.grid(True)
-
-# Save the comprehensive chart for your portfolio
 plt.savefig('huberloss_real_data.png', dpi=300)
-print("Success! Updated chart saved as huberloss_real_data.png")
+print("Saved chart to huberloss_real_data.png")
 plt.show()
