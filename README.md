@@ -1,21 +1,19 @@
-# robust-huber-kernel-regression
-Python implementation of Tikhonov-Regularized Huber Regression in RKHS for handling heavy-tailed data.
 # Robust Regression Engine: Tikhonov-Regularized Huber Regression in RKHS
 
-This repository contains a clean, production-ready Python implementation of a **Tikhonov-Regularized Huber Regression** framework within a **Reproducing Kernel Hilbert Space (RKHS)**. 
+[cite_start]This repository contains a clean, production-ready Python implementation of a **Tikhonov-Regularized Huber Regression** framework within a **Reproducing Kernel Hilbert Space (RKHS)**[cite: 23]. 
 
-Unlike traditional regression models that break down when encountering heavy-tailed noise or massive data corruptions, this engine guarantees super-robustness by inherently suppressing arbitrary outliers without sacrificing the capacity to learn complex non-linear patterns.
+[cite_start]Unlike traditional regression models that break down when encountering heavy-tailed noise or massive data corruptions, this engine guarantees super-robustness by inherently suppressing arbitrary outliers without sacrificing the capacity to learn complex non-linear patterns[cite: 27, 37].
 
 ## The Core Problem & Solution
 
 ### The Vulnerability of Least Squares
-In real-world data streaming (e.g., volatile cryptocurrency markets, faulty IoT sensor readouts), datasets are frequently contaminated by malicious anomalies or heavy-tailed distributions. Traditional structural estimators using standard **Least Squares** or generic Ridge Regression have an extremely low tolerance for these anomalies; a single catastrophic outlier can completely warp the model's prediction line.
+[cite_start]In real-world data streaming (e.g., volatile cryptocurrency markets, faulty IoT sensor readouts), datasets are frequently contaminated by malicious anomalies or heavy-tailed distributions. [cite_start]Traditional structural estimators using standard **Least Squares** or generic Ridge Regression have an extremely low tolerance for these anomalies; a single catastrophic outlier can completely warp the model's prediction line.
 
 ### The Robust Architectural Answer
 This engine implements a hybrid mathematical framework based on modern statistical learning theory:
-1. **Huber Loss Function**: Acts as a dynamic cost-evaluator. For regular small errors, it operates quadratically (like Least Squares). For sudden, massive errors (outliers), it switches to a linear scale, strictly clipping the outlier’s leverage on the overall model parameters.
-2. **Tikhonov Regularization**: Applies a functional capacity penalty to prevent the model from overfitting or choosing unnecessarily complex predictive forms.
-3. **Reproducing Kernel Hilbert Space (RKHS)**: Projects inputs into a higher-dimensional space via a Mercer Kernel (e.g., Radial Basis Function), allowing the model to naturally capture complex non-linear structures without explicit manual feature engineering.
+1. [cite_start]**Huber Loss Function**: Acts as a dynamic cost-evaluator[cite: 39]. [cite_start]For regular small errors, it operates quadratically (like Least Squares)[cite: 41, 50]. [cite_start]For sudden, massive errors (outliers), it switches to a linear scale, strictly clipping the outlier’s leverage on the overall model parameters[cite: 41, 67].
+2. [cite_start]**Tikhonov Regularization**: Applies a functional capacity penalty to restrict the searching region and prevent the model from overfitting or choosing unnecessarily complex predictive forms[cite: 72, 73].
+3. [cite_start]**Reproducing Kernel Hilbert Space (RKHS)**: Projects inputs into a higher-dimensional space via a Mercer Kernel (e.g., Radial Basis Function), allowing the model to naturally capture complex non-linear structures without explicit manual feature engineering[cite: 102].
 
 ---
 
@@ -27,16 +25,16 @@ Below is the visualized result of the model running on the corrupted dataset:
 
 ![Simulated Performance Chart](huberloss.png)
 
-### Key Observations:
-* **Outlier Immunity**: The model completely ignored the severe anomalies located near $y = 17$ and $y = -6$.
+### Key Observations from the Plot:
+* **Outlier Immunity**: The blue prediction line completely ignores the severe anomalies located near $y = 17$ and $y = -6$, showing high resistance to heavy-tailed distributions.
 * **Smooth Non-Linear Generalization**: Thanks to the RBF Kernel integration, the prediction line exhibits a highly organic, continuous curvature that maps the true data density rather than rigidly forcing a straight line.
-* **High Operational Stability**: Tikhonov boundaries successfully kept the parameters constrained, eliminating any unwanted target oscillations.
+* **High Operational Stability**: Tikhonov boundaries successfully kept the functional parameter space constrained, eliminating any unwanted target oscillations.
 
 ---
 
 ## Project Structure & Quick Start
 
 ### Installation
-Ensure you have the core scientific stack installed:
+Ensure you have the core scientific stack installed in your local python environment:
 ```bash
 pip install numpy scipy scikit-learn matplotlib
