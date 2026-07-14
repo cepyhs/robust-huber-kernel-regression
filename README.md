@@ -1,19 +1,19 @@
 # Robust Regression Engine: Tikhonov-Regularized Huber Regression in RKHS
 
-[cite_start]This repository contains a clean, production-ready Python implementation of a **Tikhonov-Regularized Huber Regression** framework within a **Reproducing Kernel Hilbert Space (RKHS)**[cite: 23]. 
+This repository contains a clean, production-ready Python implementation of a **Tikhonov-Regularized Huber Regression** framework within a **Reproducing Kernel Hilbert Space (RKHS)**. 
 
-[cite_start]Unlike traditional regression models that break down when encountering heavy-tailed noise or massive data corruptions, this engine guarantees super-robustness by inherently suppressing arbitrary outliers without sacrificing the capacity to learn complex non-linear patterns[cite: 27, 37].
+Unlike traditional regression models that break down when encountering heavy-tailed noise or massive data corruptions, this engine guarantees super-robustness by inherently suppressing arbitrary outliers without sacrificing the capacity to learn complex non-linear patterns.
 
 ## The Core Problem & Solution
 
 ### The Vulnerability of Least Squares
-[cite_start]In real-world data streaming (e.g., volatile cryptocurrency markets, faulty IoT sensor readouts), datasets are frequently contaminated by malicious anomalies or heavy-tailed distributions. [cite_start]Traditional structural estimators using standard **Least Squares** or generic Ridge Regression have an extremely low tolerance for these anomalies; a single catastrophic outlier can completely warp the model's prediction line.
+In real-world data streaming (e.g., volatile cryptocurrency markets, faulty IoT sensor readouts), datasets are frequently contaminated by malicious anomalies or heavy-tailed distributions. Traditional structural estimators using standard **Least Squares** or generic Ridge Regression have an extremely low tolerance for these anomalies; a single catastrophic outlier can completely warp the model's prediction line.
 
 ### The Robust Architectural Answer
 This engine implements a hybrid mathematical framework based on modern statistical learning theory:
-1. [cite_start]**Huber Loss Function**: Acts as a dynamic cost-evaluator[cite: 39]. [cite_start]For regular small errors, it operates quadratically (like Least Squares)[cite: 41, 50]. [cite_start]For sudden, massive errors (outliers), it switches to a linear scale, strictly clipping the outlier’s leverage on the overall model parameters[cite: 41, 67].
-2. [cite_start]**Tikhonov Regularization**: Applies a functional capacity penalty to restrict the searching region and prevent the model from overfitting or choosing unnecessarily complex predictive forms[cite: 72, 73].
-3. [cite_start]**Reproducing Kernel Hilbert Space (RKHS)**: Projects inputs into a higher-dimensional space via a Mercer Kernel (e.g., Radial Basis Function), allowing the model to naturally capture complex non-linear structures without explicit manual feature engineering[cite: 102].
+1. **Huber Loss Function**: Acts as a dynamic cost-evaluator. For regular small errors, it operates quadratically (like Least Squares). For sudden, massive errors (outliers), it switches to a linear scale, strictly clipping the outlier’s leverage on the overall model parameters.
+2. **Tikhonov Regularization**: Applies a functional capacity penalty to restrict the searching region and prevent the model from overfitting or choosing unnecessarily complex predictive forms.
+3. **Reproducing Kernel Hilbert Space (RKHS)**: Projects inputs into a higher-dimensional space via a Mercer Kernel (e.g., Radial Basis Function), allowing the model to naturally capture complex non-linear structures without explicit manual feature engineering.
 
 ---
 
