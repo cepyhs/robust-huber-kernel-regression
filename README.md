@@ -1,64 +1,60 @@
 # Robust Regression Engine: Tikhonov-Regularized Huber Regression in RKHS
 
-A Python implementation of **Tikhonov-Regularized Huber Regression** in a **Reproducing Kernel Hilbert Space (RKHS)**, illustrating a technique from recent robust statistical learning theory. Unlike ordinary least squares, this approach substantially reduces the influence of heavy-tailed noise and extreme outliers when fitting a trend to noisy data.
+A Python implementation of **Tikhonov-Regularized Huber Regression** in a **Reproducing Kernel Hilbert Space (RKHS)**, combining an RBF kernel with Huber loss to limit the leverage of heavy-tailed noise and isolated outliers when estimating underlying trends.
 
 ## Theoretical Background
 
-This implementation is inspired by the framework of Huber-loss regression regularized via a Tikhonov (RKHS-norm) penalty, combining three ingredients:
+The estimator solves the regularized empirical risk minimization problem:
 
-1. **Huber Loss**: penalizes small errors quadratically (as in least squares) but switches to a linear penalty beyond a threshold σ, which sharply reduces — though does not eliminate — the leverage of extreme residuals on the fit.
-2. **RKHS / Mercer Kernels**: projects the input into a higher-dimensional feature space (here, via an RBF kernel) so the model can capture non-linear trend structure without manual feature engineering.
-3. **Tikhonov Regularization**: penalizes model complexity in RKHS norm, keeping the fit anchored to the macro trend rather than chasing every local fluctuation.
+$$\hat{f} = \arg\min_{f \in \mathcal{H}_K} \frac{1}{n} \sum_{i=1}^{n} L_\sigma(y_i - f(x_i)) + \lambda \Vert{}f\Vert{}_{\mathcal{H}_K}^2$$
 
-**Reference**: Hongzhi Tong, "Learning theory of regularized Huber regression," *Applied and Computational Harmonic Analysis*, 85 (2026), 101894. This paper provides a rigorous statistical learning analysis (leave-one-out generalization bounds and learning rates) for this exact estimator, and is the theoretical basis for the approach used here.
+1. **Huber Loss ($L_\sigma$):** Applies a quadratic penalty for residuals $\vert{}r\vert{} \le \sigma$ and a linear penalty for $\vert{}r\vert{} > \sigma$, bounding the influence of extreme anomalies.
+2. **RKHS / RBF Kernel:** Maps scalar inputs into a higher-dimensional feature space via $K(x, x') = \exp(-\gamma \Vert{}x - x'\Vert{}^2)$ to capture non-linear trend curvature.
+3. **Tikhonov Regularization ($\lambda \Vert{}f\Vert{}_{\mathcal{H}_K}^2$):** Penalizes function complexity in the RKHS norm to prevent overfitting local volatility.
 
-### What the theory actually shows — and what it doesn't
+**Reference:** Hongzhi Tong, "Learning theory of regularized Huber regression," *Applied and Computational Harmonic Analysis*, 85 (2026), 101894.
 
-It's worth being precise about what "robustness" means in this context, since it's easy to overstate:
+### Theoretical Scope vs. Empirical Demo
 
-- The cited paper shows that, **under a symmetric-noise assumption and a finite p-th moment condition (1 < p ≤ 2)** — which allows for infinite-variance, heavy-tailed noise — the regularized Huber estimator still achieves meaningful generalization error rates as sample size grows. This is a statement about *asymptotic learning-rate guarantees*, not a claim that any single outlier, of any size, has zero effect on the fit.
-- Critically, those guarantees hold when the regularization parameter λ and the Huber threshold σ are **jointly tuned according to explicit formulas tied to the sample size** (see Theorem 1 in the paper). This implementation currently uses fixed, manually chosen values for `lambda_param`, `sigma`, and `gamma` — it has **not** been tuned to satisfy the paper's theoretical conditions. Treat the current defaults as a reasonable heuristic starting point, not a theoretically guaranteed configuration.
-- The paper's own analysis is purely theoretical — it does not include numerical experiments (its "Data availability" statement confirms no data was used in that work). The demo in this repository is therefore an independent numerical illustration of the underlying idea, not a reproduction of results from the paper.
-- The symmetric-noise assumption underlying the theory is a real limitation for financial return data, which is typically **asymmetric** (crashes tend to have a fatter, faster tail than rallies). This doesn't invalidate the approach, but it means the theoretical guarantees don't directly transfer to markets without further justification.
+- **Asymptotic Conditions:** Tong (2026) establishes minimax learning rates under symmetric noise with finite $p$-th moments ($1 < p \le 2$) when $\lambda$ and $\sigma$ follow explicit sample-size-dependent decay schedules (Theorem 1). This script uses fixed heuristic parameters (`lambda_param=0.008`, `sigma=0.5`, `gamma=0.3`) rather than theoretically scheduled rates.
+- **Noise Symmetry:** Financial return series exhibit asymmetric tail behavior (sharp drawdowns vs. gradual rallies), meaning theoretical guarantees under symmetric noise do not transfer directly to live market forecasting.
 
-## Empirical Demo (Illustrative, Not a Theoretical Reproduction)
+## Empirical Comparison
 
-The included script fits this model to historical Bitcoin (BTC-USD) daily closing prices (January 2025–present, via the Yahoo Finance API), with two synthetic outliers manually injected at the 25% and 75% marks of the series to visualize how the fit responds to extreme, isolated anomalies.
-![Robust Huber-Tikhonov fit vs OLS baseline on BTC price data](robust_vs_OLS_regression.png)
+The script `robust_regressor.py` fits three estimators on normalized BTC-USD daily closing prices ($n = 693$, January 2025 onward via Yahoo Finance) with two synthetic outliers injected at the 25% and 75% time indices:
 
-**What the plot shows:**
-- The fitted trend line is markedly less pulled toward the injected anomalies than an ordinary least-squares fit would be, consistent with Huber loss down-weighting large residuals.
-- The kernel-based fit captures non-linear trend curvature rather than a rigid straight line.
-- The Tikhonov penalty keeps the fit focused on the macro trend rather than daily noise.
+1. **Huber-Tikhonov-RKHS** (non-linear RBF kernel + robust Huber loss)
+2. **Kernel Ridge Regression** (identical RBF kernel and regularization weight, but standard $L_2$ squared loss)
+3. **Linear OLS** (standard linear $L_2$ baseline)
 
-**What this demo does *not* establish:**
-- It does not test the model against real, uncontrolled market anomalies — the injected outliers are large, synthetic, and known in advance.
-- It says nothing about predictive or trading performance. A smoothed trend line is inherently backward-looking; it cannot distinguish, in real time, between a transient anomaly and the early stage of a genuine trend reversal.
-- It does not verify the sample-size-dependent tuning conditions required by the cited theory (see above).
+![Robust Huber-Tikhonov fit vs L2 baselines on BTC price data](robust_vs_OLS_regression.png)
 
-## Project Structure & Quick Start
+### Evaluation at Injected Anomaly Coordinates
 
-### Installation
+| Metric / Model | Index 1 (25% Mark) | Index 2 (75% Mark) |
+| :--- | :---: | :---: |
+| **Original Clean Value** | `7.103` | `0.792` |
+| **Corrupted Target ($\pm 5.0$)** | `2.103` | `5.792` |
+| **Huber-Tikhonov-RKHS Fit** | `6.376` | `1.703` |
+| **Kernel Ridge ($L_2$-RKHS) Fit** | `7.340` | `1.533` |
+| **Linear OLS Baseline** | `5.996` | `3.021` |
 
-```bash
+Because a single isolated outlier has limited leverage under strong global smoothing ($\lambda = 0.008$), both RKHS estimators resist single-point spikes; the linear OLS baseline, lacking local flexibility, shifts substantially toward the second outlier (`3.021` vs. `0.792`).
+
+## Usage
+
+~~~bash
 pip install numpy scipy scikit-learn matplotlib yfinance
-```
-
-### Usage
-
-```bash
-python huber_trend_demo.py
-```
-
-This fetches BTC-USD data, fits the model, and saves a comparison chart to `huberloss_real_data.png`.
+python3 robust_regressor.py
+~~~
 
 ## Limitations
 
-- Hyperparameters (`lambda_param`, `sigma`, `gamma`) are currently set manually rather than via the sample-size-dependent schedule prescribed by the theory, or via cross-validation.
-- The optimizer (`scipy.optimize.minimize` with BFGS, no analytic gradient) scales poorly with the number of data points; for larger datasets, an IRLS-based solver would be more efficient and is a planned improvement.
-- No comparison against a standard OLS or Ridge baseline is currently included in the script; adding one would make the robustness claims easier to verify visually and numerically.
-- This is a research-inspired demo, not a production trading signal system. It should not be used as the sole basis for financial decisions.
+- **Manual Hyperparameters:** `lambda_param`, `sigma`, and `gamma` are fixed manually rather than selected via cross-validation or the theoretical sample-size schedule.
+- **Single-Point Outlier Regime:** With strong Tikhonov smoothing, single isolated spikes exert limited pull even on Kernel Ridge; testing clustered bursts of consecutive outliers better highlights the separation between Huber and $L_2$ losses.
+- **Optimizer Scaling:** Minimizing the dual objective via `scipy.optimize.minimize` (BFGS without an analytic gradient) scales at $\mathcal{O}(n^3)$ with kernel matrix operations; an Iteratively Reweighted Least Squares (IRLS) solver would improve runtime on larger datasets.
+- **Retrospective Smoothing:** Kernel smoothing estimates historical trend structure and is not designed as a real-time trading or forecasting signal.
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+MIT License — see [LICENSE](LICENSE) for details.
